@@ -1,4 +1,6 @@
+import 'dart:convert'; // <-- Добавить
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // <-- Добавить
 import 'package:provider/provider.dart';
 
 import 'models/game_state.dart';
@@ -11,19 +13,15 @@ import 'screens/players_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ВРЕМЕННЫЙ СПИСОК КАРТ (вместо JSON)
-  const List<String> loadedMyths = [
-    "Одержимость",
-    "Пробоина в корпусе",
-    "Глубоководные на борту",
-    "Шторм",
-    "Психическая атака",
-    "Сломанный двигатель",
-    "Смута",
-    "Потеря припасов",
-    "Туман",
-    "Видение из глубин"
-  ];
+  // Загружаем JSON со списком карт
+  String jsonString = '[]';
+  try {
+    jsonString = await rootBundle.loadString('assets/myths.json');
+  } catch (e) {
+    debugPrint('Ошибка загрузки JSON: $e');
+  }
+
+  final List<String> loadedMyths = List<String>.from(jsonDecode(jsonString));
 
   final loaded = await GameState.load();
   final state = loaded ?? GameState();

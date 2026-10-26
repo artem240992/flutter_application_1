@@ -50,7 +50,7 @@ class PlayersScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: p.role,
+                    initialValue: p.role,
                     decoration: const InputDecoration(labelText: 'Роль'),
                     items: _roles
                         .map((r) => DropdownMenuItem(
