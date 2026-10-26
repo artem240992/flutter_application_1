@@ -6,7 +6,7 @@ class Player {
   final String name;
   bool isCaptain;
   bool isKeeper;
-  String role; // unknown | human | hybrid | cultist
+  String role;
 
   Player({
     required this.name,
@@ -46,9 +46,7 @@ class GameState extends ChangeNotifier {
   bool fatherDagon = false;
   bool motherHydra = false;
 
-  // Список карт, которые можно сыграть (загружается из JSON)
   List<String> availableMyths = [];
-  // Список уже сыгранных карт
   List<String> playedMyths = <String>[];
 
   List<Player> players = [
@@ -60,14 +58,13 @@ class GameState extends ChangeNotifier {
 
   List<String> log = <String>[];
 
-  // --- ЛОГИКА UNDO (ИСТОРИЯ ДЕЙСТВИЙ) ---
   final List<Map<String, dynamic>> _history = [];
   bool get canUndo => _history.isNotEmpty;
 
   void _saveHistory() {
     _history.add(toJson());
     if (_history.length > 20) {
-      _history.removeAt(0); // Храним только последние 20 действий для экономии памяти
+      _history.removeAt(0);
     }
   }
 
@@ -78,7 +75,6 @@ class GameState extends ChangeNotifier {
     _log('Отменено последнее действие');
     notifyListeners();
   }
-  // --------------------------------------
 
   void _log(String m) {
     final now = DateTime.now();
@@ -220,13 +216,12 @@ class GameState extends ChangeNotifier {
     'deepInOcean': deepInOcean,
     'fatherDagon': fatherDagon,
     'motherHydra': motherHydra,
-    'availableMyths': availableMyths, // Сохраняем и список доступных карт
+    'availableMyths': availableMyths,
     'playedMyths': playedMyths,
     'players': players.map((p) => p.toJson()).toList(),
     'log': log,
   };
 
-  // Добавлен параметр recordHistory, чтобы отмена не зацикливалась
   void restore(Map<String, dynamic> j, {bool recordHistory = false}) {
     if (recordHistory) _saveHistory();
 
@@ -242,10 +237,8 @@ class GameState extends ChangeNotifier {
     deepInOcean = j['deepInOcean'] as int? ?? 0;
     fatherDagon = j['fatherDagon'] as bool? ?? false;
     motherHydra = j['motherHydra'] as bool? ?? false;
-
     availableMyths = (j['availableMyths'] as List?)?.cast<String>() ?? availableMyths;
     playedMyths = (j['playedMyths'] as List?)?.cast<String>() ?? <String>[];
-
     players = (j['players'] as List?)
         ?.map((e) => Player.fromJson(e as Map<String, dynamic>))
         .toList() ??
@@ -266,7 +259,6 @@ class GameState extends ChangeNotifier {
     final raw = prefs.getString('game_state');
     if (raw == null) return null;
     final state = GameState();
-    // При загрузке не пишем в историю
     state.restore(jsonDecode(raw) as Map<String, dynamic>, recordHistory: false);
     return state;
   }
