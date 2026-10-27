@@ -5,9 +5,9 @@
 
     <!-- Основное приложение -->
     <application
-        android:label="unfathomable_companion"
+        android:label="Непостижимое"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/launcher_icon">
         <activity
             android:name=".MainActivity"
             android:exported="true"

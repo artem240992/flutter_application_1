@@ -1,7 +1,7 @@
 name: unfathomable_companion
 description: Companion for Unfathomable board game
 publish_to: 'none'
-version: 0.1.0
+version: 1.0.0+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -13,13 +13,32 @@ dependencies:
   shared_preferences: ^2.2.2
   image_picker: ^1.1.2
   google_mlkit_text_recognition: ^0.13.0
+  package_info_plus: ^8.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.1
+  change_app_package_name_plus: ^1.6.0
 
 flutter:
   uses-material-design: true
   assets:
     - assets/myths.json
+    - assets/icon/app_icon.png  # <-- ДОБАВИТЬ ВОТ ЭТУ СТРОКУ
+
+# Блок настройки иконки должен быть БЕЗ отступов слева, на одном уровне с flutter:
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 21
+  
+flutter_native_splash:
+  color: "#1B3A5C" # Ваш темно-синий цвет
+  image: assets/icon/app_icon.png
+  android_12:
+    image: assets/icon/app_icon.png
+    color: "#1B3A5C"

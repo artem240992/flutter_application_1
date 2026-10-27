@@ -6,13 +6,29 @@ class Player {
   final String name;
   bool isCaptain;
   bool isKeeper;
-  String role;
+  String role; // unknown | human | hybrid | cultist
+  String characterName;
+  String specialAction;
+
+  // Характеристики
+  int strength;
+  int will;
+  int lore;
+  int influence;
+  int observation;
 
   Player({
     required this.name,
     this.isCaptain = false,
     this.isKeeper = false,
     this.role = 'unknown',
+    this.characterName = 'Не выбран',
+    this.specialAction = '',
+    this.strength = 0,
+    this.will = 0,
+    this.lore = 0,
+    this.influence = 0,
+    this.observation = 0,
   });
 
   Map<String, dynamic> toJson() => {
@@ -20,6 +36,13 @@ class Player {
     'isCaptain': isCaptain,
     'isKeeper': isKeeper,
     'role': role,
+    'characterName': characterName,
+    'specialAction': specialAction,
+    'strength': strength,
+    'will': will,
+    'lore': lore,
+    'influence': influence,
+    'observation': observation,
   };
 
   factory Player.fromJson(Map<String, dynamic> j) => Player(
@@ -27,6 +50,13 @@ class Player {
     isCaptain: j['isCaptain'] as bool? ?? false,
     isKeeper: j['isKeeper'] as bool? ?? false,
     role: j['role'] as String? ?? 'unknown',
+    characterName: j['characterName'] as String? ?? 'Не выбран',
+    specialAction: j['specialAction'] as String? ?? '',
+    strength: j['strength'] as int? ?? 0,
+    will: j['will'] as int? ?? 0,
+    lore: j['lore'] as int? ?? 0,
+    influence: j['influence'] as int? ?? 0,
+    observation: j['observation'] as int? ?? 0,
   );
 }
 
@@ -35,6 +65,7 @@ class GameState extends ChangeNotifier {
   int supplies = 8;
   int sanity = 8;
   int souls = 8;
+  String gameStatus = 'active'; // 'active', 'human_win', 'traitor_win'
 
   List<bool> damageSections = List.filled(6, false);
   int travelPosition = 0;
@@ -65,6 +96,28 @@ class GameState extends ChangeNotifier {
     _history.add(toJson());
     if (_history.length > 20) {
       _history.removeAt(0);
+    }
+  }
+
+  void _checkGameStatus() {
+    if (gameStatus != 'active') return; // Если игра уже кончена, ничего не делаем
+
+    // Проверка на поражение (ресурсы на нуле или корабль уничтожен)
+    if (fuel <= 0 || supplies <= 0 || sanity <= 0 || souls <= 0 || damageSections.every((d) => d)) {
+      gameStatus = 'traitor_win';
+      _log('ИГРА ОКОНЧЕНА: Ресурсы на нуле или корабль уничтожен. Победа Предателей!');
+      return;
+    }
+
+    // Проверка на прибытие в Бостон
+    if (travelPosition >= maxTravel) {
+      if (fuel > 0 && supplies > 0 && sanity > 0 && souls > 0) {
+        gameStatus = 'human_win';
+        _log('ИГРА ОКОНЧЕНА: Корабль добрался до Бостона! Победа Людей!');
+      } else {
+        gameStatus = 'traitor_win';
+        _log('ИГРА ОКОНЧЕНА: Прибыли в Бостон, но ресурсы на нуле. Победа Предателей!');
+      }
     }
   }
 
@@ -101,6 +154,7 @@ class GameState extends ChangeNotifier {
     }
     _log('$key: ${delta > 0 ? '+' : ''}$delta');
     notifyListeners();
+    _checkGameStatus();
   }
 
   void toggleDamage(int index) {
@@ -108,6 +162,7 @@ class GameState extends ChangeNotifier {
     damageSections[index] = !damageSections[index];
     _log('Отсек ${index + 1}: ${damageSections[index] ? 'повреждён' : 'в порядке'}');
     notifyListeners();
+    _checkGameStatus();
   }
 
   void advanceTravel() {
@@ -116,7 +171,34 @@ class GameState extends ChangeNotifier {
       travelPosition++;
       _log('Путешествие: отрезок $travelPosition из $maxTravel');
       notifyListeners();
+      _checkGameStatus();
     }
+  }
+
+
+  void resetGame() {
+    _saveHistory();
+    gameStatus = 'active';
+    fuel = 8;
+    supplies = 8;
+    sanity = 8;
+    souls = 8;
+    damageSections = List.filled(6, false);
+    travelPosition = 0;
+    ritualProgress = 0;
+    deepOnDeck = 0;
+    deepInOcean = 0;
+    fatherDagon = false;
+    motherHydra = false;
+    playedMyths.clear();
+    for (var p in players) {
+      p.isCaptain = false;
+      p.isKeeper = false;
+      p.role = 'unknown';
+      p.specialAction = '';
+    }
+    _log('--- НАЧАТА НОВАЯ ИГРА ---');
+    notifyListeners();
   }
 
   void retreatTravel() {
@@ -176,19 +258,67 @@ class GameState extends ChangeNotifier {
 
   void setCaptain(int index) {
     _saveHistory();
+    // Проверяем, является ли этот игрок капитаном прямо сейчас
+    bool isCurrentlyCaptain = players[index].isCaptain;
+
     for (var i = 0; i < players.length; i++) {
-      players[i].isCaptain = i == index;
+      // Если мы кликнули на того, кто уже капитан — снимаем со всех.
+      // Если кликнули на другого — ставим ему, а с остальных снимаем.
+      players[i].isCaptain = isCurrentlyCaptain ? false : (i == index);
     }
-    _log('Капитан: ${players[index].name}');
+
+    if (isCurrentlyCaptain) {
+      _log('Капитан снят');
+    } else {
+      _log('Капитан: ${players[index].name}');
+    }
     notifyListeners();
   }
 
   void setKeeper(int index) {
     _saveHistory();
+    // Проверяем, является ли этот игрок хранителем прямо сейчас
+    bool isCurrentlyKeeper = players[index].isKeeper;
+
     for (var i = 0; i < players.length; i++) {
-      players[i].isKeeper = i == index;
+      players[i].isKeeper = isCurrentlyKeeper ? false : (i == index);
     }
-    _log('Хранитель фолианта: ${players[index].name}');
+
+    if (isCurrentlyKeeper) {
+      _log('Хранитель снят');
+    } else {
+      _log('Хранитель фолианта: ${players[index].name}');
+    }
+    notifyListeners();
+  }
+
+  void setCharacter(int index, String charName) {
+    _saveHistory();
+    players[index].characterName = charName;
+
+    // Автоматически заполняем базовые характеристики (пример для игры)
+    // Вы можете изменить эти цифры под реальные значения из игры
+    if (charName == 'Агата Крейн') {
+      players[index].strength = 2;
+      players[index].will = 4;
+      players[index].lore = 5;
+      players[index].influence = 2;
+      players[index].observation = 3;
+    } else if (charName == 'Отец Матео') {
+      players[index].strength = 3;
+      players[index].will = 5;
+      players[index].lore = 3;
+      players[index].influence = 4;
+      players[index].observation = 2;
+    } else if (charName == 'Дэвид Марш') {
+      players[index].strength = 2;
+      players[index].will = 3;
+      players[index].lore = 4;
+      players[index].influence = 1;
+      players[index].observation = 4;
+    } // Добавьте остальных персонажей по аналогии
+
+    _log('${players[index].name} выбрал персонажа: $charName');
     notifyListeners();
   }
 
@@ -212,6 +342,7 @@ class GameState extends ChangeNotifier {
     'damageSections': damageSections,
     'travelPosition': travelPosition,
     'ritualProgress': ritualProgress,
+    'gameStatus': gameStatus,
     'deepOnDeck': deepOnDeck,
     'deepInOcean': deepInOcean,
     'fatherDagon': fatherDagon,
@@ -232,6 +363,7 @@ class GameState extends ChangeNotifier {
     damageSections =
         (j['damageSections'] as List?)?.cast<bool>() ?? List.filled(6, false);
     travelPosition = j['travelPosition'] as int? ?? 0;
+    gameStatus = j['gameStatus'] as String? ?? 'active';
     ritualProgress = j['ritualProgress'] as int? ?? 0;
     deepOnDeck = j['deepOnDeck'] as int? ?? 0;
     deepInOcean = j['deepInOcean'] as int? ?? 0;
@@ -251,6 +383,23 @@ class GameState extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('game_state', jsonEncode(toJson()));
     _log('Игра сохранена');
+    notifyListeners();
+  }
+
+  void addPlayer() {
+    if (players.length >= 6) return; // Максимум 6 игроков
+    _saveHistory();
+    players.add(Player(name: 'Игрок ${players.length + 1}'));
+    _log('Добавлен новый игрок');
+    notifyListeners();
+  }
+
+  void removePlayer(int index) {
+    if (players.length <= 1) return; // Нельзя удалить последнего игрока
+    _saveHistory();
+    final removedName = players[index].name;
+    players.removeAt(index);
+    _log('Удален игрок: $removedName');
     notifyListeners();
   }
 

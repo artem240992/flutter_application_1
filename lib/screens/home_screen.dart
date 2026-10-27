@@ -1,25 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../models/game_state.dart';
 import '../widgets/common.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  bool _dialogShown = false;
 
   @override
   Widget build(BuildContext context) {
     final s = context.watch<GameState>();
+
+    if (s.gameStatus != 'active' && !_dialogShown) {
+      _dialogShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showGameOverDialog(context, s);
+      });
+    } else if (s.gameStatus == 'active' && _dialogShown) {
+      _dialogShown = false;
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Капитанский планшет'),
         actions: [
-          // Новая кнопка Undo
+          // НОВАЯ КНОПКА: Начать заново
+          IconButton(
+            tooltip: 'Начать новую игру',
+            icon: const Icon(Icons.refresh),
+            onPressed: () => _showResetDialog(context, s),
+          ),
+          // Кнопка отмены действия
           IconButton(
             tooltip: 'Отменить действие',
             icon: const Icon(Icons.undo),
-            onPressed: s.canUndo ? s.undo : null, // Неактивна, если истории нет
+            onPressed: s.canUndo ? s.undo : null,
           ),
+          // Кнопка сохранения
           IconButton(
             tooltip: 'Сохранить',
             icon: const Icon(Icons.save),
@@ -159,6 +184,93 @@ class HomeScreen extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+
+          // Блок отображения версии приложения
+          const SizedBox(height: 24),
+          FutureBuilder<PackageInfo>(
+            future: PackageInfo.fromPlatform(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                final info = snapshot.data!;
+                return Center(
+                  child: Text(
+                    'Версия ${info.version} (${info.buildNumber})',
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+          const SizedBox(height: 24), // Отступ снизу
+        ],
+      ),
+    );
+  }
+
+  // Окно подтверждения сброса игры
+  void _showResetDialog(BuildContext context, GameState s) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Начать новую игру?'),
+        content: const Text(
+            'Весь текущий прогресс (ресурсы, путь, повреждения, сыгранные мифы и заметки) будет сброшен. Вы уверены?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              s.resetGame(); // Вызываем метод сброса
+            },
+            child: const Text('Да, сбросить'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Окно окончания игры (Победа/Поражение)
+  void _showGameOverDialog(BuildContext context, GameState s) {
+    bool isHumanWin = s.gameStatus == 'human_win';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          isHumanWin ? 'Победа Людей!' : 'Победа Предателей!',
+          style: TextStyle(
+            color: isHumanWin ? Colors.blue.shade800 : Colors.red.shade800,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          isHumanWin
+              ? 'Корабль успешно добрался до Бостона, сохранив экипаж и ресурсы. Люди выиграли! Раскройте свои тайные роли, чтобы узнать, кто победил лично.'
+              : 'Корабль потерпел крушение или ресурсы иссякли. Гибриды и культисты одержали верх! Раскройте свои тайные роли.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+            },
+            child: const Text('Посмотреть поле'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: isHumanWin ? Colors.blue : Colors.red,
+            ),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              s.resetGame();
+            },
+            child: const Text('Новая игра'),
           ),
         ],
       ),
