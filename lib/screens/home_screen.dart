@@ -32,19 +32,21 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('Капитанский планшет'),
         actions: [
-          // НОВАЯ КНОПКА: Начать заново
+          IconButton(
+            tooltip: 'Настройки',
+            icon: const Icon(Icons.settings),
+            onPressed: () => _showSettingsDialog(context, s),
+          ),
           IconButton(
             tooltip: 'Начать новую игру',
             icon: const Icon(Icons.refresh),
             onPressed: () => _showResetDialog(context, s),
           ),
-          // Кнопка отмены действия
           IconButton(
             tooltip: 'Отменить действие',
             icon: const Icon(Icons.undo),
             onPressed: s.canUndo ? s.undo : null,
           ),
-          // Кнопка сохранения
           IconButton(
             tooltip: 'Сохранить',
             icon: const Icon(Icons.save),
@@ -100,9 +102,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(
+                      // Используем прозрачность для поддержки темной темы
                       color: broken
-                          ? Colors.red.shade100
-                          : Colors.green.shade100,
+                          ? Colors.red.withOpacity(0.2)
+                          : Colors.green.withOpacity(0.2),
                       border: Border.all(
                         color: broken ? Colors.red : Colors.green,
                       ),
@@ -143,7 +146,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               ? Colors.amber
                               : reached
                               ? Colors.blue
-                              : Colors.grey.shade300,
+                          // Используем цвет из темы
+                              : Theme.of(context).disabledColor.withOpacity(0.3),
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
@@ -186,7 +190,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // Блок отображения версии приложения
           const SizedBox(height: 24),
           FutureBuilder<PackageInfo>(
             future: PackageInfo.fromPlatform(),
@@ -203,13 +206,63 @@ class _HomeScreenState extends State<HomeScreen> {
               return const SizedBox.shrink();
             },
           ),
-          const SizedBox(height: 24), // Отступ снизу
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  // Окно подтверждения сброса игры
+  // --- НАСТРОЙКИ ТЕМЫ (ТЕПЕРЬ В ПРАВИЛЬНОМ МЕСТЕ) ---
+  void _showSettingsDialog(BuildContext context, GameState s) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Настройки'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Тема оформления:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            RadioListTile<ThemeMode>(
+              title: const Text('Системная'),
+              value: ThemeMode.system,
+              groupValue: s.themeMode,
+              onChanged: (val) {
+                if (val != null) s.setThemeMode(val);
+                Navigator.pop(ctx);
+              },
+            ),
+            RadioListTile<ThemeMode>(
+              title: const Text('Светлая'),
+              value: ThemeMode.light,
+              groupValue: s.themeMode,
+              onChanged: (val) {
+                if (val != null) s.setThemeMode(val);
+                Navigator.pop(ctx);
+              },
+            ),
+            RadioListTile<ThemeMode>(
+              title: const Text('Темная'),
+              value: ThemeMode.dark,
+              groupValue: s.themeMode,
+              onChanged: (val) {
+                if (val != null) s.setThemeMode(val);
+                Navigator.pop(ctx);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Закрыть'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showResetDialog(BuildContext context, GameState s) {
     showDialog(
       context: context,
@@ -226,7 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
               Navigator.of(ctx).pop();
-              s.resetGame(); // Вызываем метод сброса
+              s.resetGame();
             },
             child: const Text('Да, сбросить'),
           ),
@@ -235,7 +288,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Окно окончания игры (Победа/Поражение)
   void _showGameOverDialog(BuildContext context, GameState s) {
     bool isHumanWin = s.gameStatus == 'human_win';
 

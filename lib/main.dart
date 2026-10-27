@@ -9,14 +9,12 @@ import 'screens/log_screen.dart';
 import 'screens/monsters_screen.dart';
 import 'screens/myths_screen.dart';
 import 'screens/players_screen.dart';
-import 'dart:async'; // Не забудьте добавить этот импорт в самом верху файла!
+import 'dart:async';
 
 void main() {
-  // Запускаем приложение сразу, без ожидания
   runApp(const SplashApp());
 }
 
-// Виджет, который управляет загрузкой
 class SplashApp extends StatefulWidget {
   const SplashApp({super.key});
 
@@ -33,11 +31,9 @@ class _SplashAppState extends State<SplashApp> {
     _initFuture = _initializeApp();
   }
 
-  // Асинхронная функция загрузки данных
   Future<GameState> _initializeApp() async {
     WidgetsFlutterBinding.ensureInitialized();
 
-    // Загружаем JSON со списком карт
     String jsonString = '[]';
     try {
       jsonString = await rootBundle.loadString('assets/myths.json');
@@ -46,12 +42,10 @@ class _SplashAppState extends State<SplashApp> {
     }
     final List<String> loadedMyths = List<String>.from(jsonDecode(jsonString));
 
-    // Загружаем сохраненную игру
     final loaded = await GameState.load();
     final state = loaded ?? GameState();
     state.availableMyths = loadedMyths;
 
-    // Задержка должна быть не меньше, чем время анимации процентов (2.5 сек)
     await Future.delayed(const Duration(seconds: 3));
 
     return state;
@@ -62,7 +56,6 @@ class _SplashAppState extends State<SplashApp> {
     return FutureBuilder<GameState>(
       future: _initFuture,
       builder: (context, snapshot) {
-        // Пока данные грузятся, показываем экран загрузки
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const MaterialApp(
             debugShowCheckedModeBanner: false,
@@ -70,7 +63,6 @@ class _SplashAppState extends State<SplashApp> {
           );
         }
 
-        // Когда данные загружены, показываем основное приложение
         return ChangeNotifierProvider(
           create: (_) => snapshot.data!,
           child: const UnfathomableCompanionApp(),
@@ -80,7 +72,6 @@ class _SplashAppState extends State<SplashApp> {
   }
 }
 
-// Экран загрузки с процентами
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -95,7 +86,6 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // Каждые 50 миллисекунд увеличиваем прогресс на 2% (займет ~2.5 секунды)
     _timer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
       setState(() {
         if (_progress < 1.0) {
@@ -116,47 +106,39 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Вычисляем процент для текста
     int percent = (_progress * 100).toInt();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1B3A5C), // Темно-синий фон
+      backgroundColor: const Color(0xFF1B3A5C),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Ваша иконка
             const Image(
               image: AssetImage('assets/icon/app_icon.png'),
               width: 120,
               height: 120,
             ),
             const SizedBox(height: 40),
-
-            // Полоска загрузки
             SizedBox(
               width: 200,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: LinearProgressIndicator(
-                  value: _progress, // Привязываем к нашей анимации
+                  value: _progress,
                   minHeight: 8,
                   backgroundColor: Colors.white24,
                   valueColor: const AlwaysStoppedAnimation<Color>(Colors.amber),
                 ),
               ),
             ),
-
             const SizedBox(height: 16),
-
-            // Текст с процентами
             Text(
               '$percent%',
               style: const TextStyle(
                   color: Colors.white,
                   fontSize: 24,
-                  fontWeight: FontWeight.bold
-              ),
+                  fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -170,19 +152,31 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 }
 
-// Основное приложение
 class UnfathomableCompanionApp extends StatelessWidget {
   const UnfathomableCompanionApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final gameState = context.watch<GameState>();
+
     return MaterialApp(
       title: 'Непостижимое: Компаньон',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1B3A5C)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF1B3A5C),
+          brightness: Brightness.light,
+        ),
         useMaterial3: true,
       ),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF1B3A5C),
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+      ),
+      themeMode: gameState.themeMode,
       home: const RootScreen(),
     );
   }

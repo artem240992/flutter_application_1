@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
 
 class Player {
   final String name;
@@ -80,6 +81,9 @@ class GameState extends ChangeNotifier {
   List<String> availableMyths = [];
   List<String> playedMyths = <String>[];
 
+  // ТЕМА ОФОРМЛЕНИЯ
+  ThemeMode themeMode = ThemeMode.system;
+
   List<Player> players = [
     Player(name: 'Игрок 1'),
     Player(name: 'Игрок 2'),
@@ -100,16 +104,14 @@ class GameState extends ChangeNotifier {
   }
 
   void _checkGameStatus() {
-    if (gameStatus != 'active') return; // Если игра уже кончена, ничего не делаем
+    if (gameStatus != 'active') return;
 
-    // Проверка на поражение (ресурсы на нуле или корабль уничтожен)
     if (fuel <= 0 || supplies <= 0 || sanity <= 0 || souls <= 0 || damageSections.every((d) => d)) {
       gameStatus = 'traitor_win';
       _log('ИГРА ОКОНЧЕНА: Ресурсы на нуле или корабль уничтожен. Победа Предателей!');
       return;
     }
 
-    // Проверка на прибытие в Бостон
     if (travelPosition >= maxTravel) {
       if (fuel > 0 && supplies > 0 && sanity > 0 && souls > 0) {
         gameStatus = 'human_win';
@@ -126,6 +128,12 @@ class GameState extends ChangeNotifier {
     final previousState = _history.removeLast();
     restore(previousState, recordHistory: false);
     _log('Отменено последнее действие');
+    notifyListeners();
+  }
+
+  void setThemeMode(ThemeMode mode) {
+    themeMode = mode;
+    save(); // Автоматически сохраняем настройку
     notifyListeners();
   }
 
@@ -173,32 +181,6 @@ class GameState extends ChangeNotifier {
       notifyListeners();
       _checkGameStatus();
     }
-  }
-
-
-  void resetGame() {
-    _saveHistory();
-    gameStatus = 'active';
-    fuel = 8;
-    supplies = 8;
-    sanity = 8;
-    souls = 8;
-    damageSections = List.filled(6, false);
-    travelPosition = 0;
-    ritualProgress = 0;
-    deepOnDeck = 0;
-    deepInOcean = 0;
-    fatherDagon = false;
-    motherHydra = false;
-    playedMyths.clear();
-    for (var p in players) {
-      p.isCaptain = false;
-      p.isKeeper = false;
-      p.role = 'unknown';
-      p.specialAction = '';
-    }
-    _log('--- НАЧАТА НОВАЯ ИГРА ---');
-    notifyListeners();
   }
 
   void retreatTravel() {
@@ -258,15 +240,10 @@ class GameState extends ChangeNotifier {
 
   void setCaptain(int index) {
     _saveHistory();
-    // Проверяем, является ли этот игрок капитаном прямо сейчас
     bool isCurrentlyCaptain = players[index].isCaptain;
-
     for (var i = 0; i < players.length; i++) {
-      // Если мы кликнули на того, кто уже капитан — снимаем со всех.
-      // Если кликнули на другого — ставим ему, а с остальных снимаем.
       players[i].isCaptain = isCurrentlyCaptain ? false : (i == index);
     }
-
     if (isCurrentlyCaptain) {
       _log('Капитан снят');
     } else {
@@ -277,13 +254,10 @@ class GameState extends ChangeNotifier {
 
   void setKeeper(int index) {
     _saveHistory();
-    // Проверяем, является ли этот игрок хранителем прямо сейчас
     bool isCurrentlyKeeper = players[index].isKeeper;
-
     for (var i = 0; i < players.length; i++) {
       players[i].isKeeper = isCurrentlyKeeper ? false : (i == index);
     }
-
     if (isCurrentlyKeeper) {
       _log('Хранитель снят');
     } else {
@@ -296,8 +270,6 @@ class GameState extends ChangeNotifier {
     _saveHistory();
     players[index].characterName = charName;
 
-    // Автоматически заполняем базовые характеристики (пример для игры)
-    // Вы можете изменить эти цифры под реальные значения из игры
     if (charName == 'Агата Крейн') {
       players[index].strength = 2;
       players[index].will = 4;
@@ -316,7 +288,7 @@ class GameState extends ChangeNotifier {
       players[index].lore = 4;
       players[index].influence = 1;
       players[index].observation = 4;
-    } // Добавьте остальных персонажей по аналогии
+    }
 
     _log('${players[index].name} выбрал персонажа: $charName');
     notifyListeners();
@@ -331,6 +303,48 @@ class GameState extends ChangeNotifier {
   void clearLog() {
     _saveHistory();
     log.clear();
+    notifyListeners();
+  }
+
+  void addPlayer() {
+    if (players.length >= 6) return;
+    _saveHistory();
+    players.add(Player(name: 'Игрок ${players.length + 1}'));
+    _log('Добавлен новый игрок');
+    notifyListeners();
+  }
+
+  void removePlayer(int index) {
+    if (players.length <= 1) return;
+    _saveHistory();
+    final removedName = players[index].name;
+    players.removeAt(index);
+    _log('Удален игрок: $removedName');
+    notifyListeners();
+  }
+
+  void resetGame() {
+    _saveHistory();
+    gameStatus = 'active';
+    fuel = 8;
+    supplies = 8;
+    sanity = 8;
+    souls = 8;
+    damageSections = List.filled(6, false);
+    travelPosition = 0;
+    ritualProgress = 0;
+    deepOnDeck = 0;
+    deepInOcean = 0;
+    fatherDagon = false;
+    motherHydra = false;
+    playedMyths.clear();
+    for (var p in players) {
+      p.isCaptain = false;
+      p.isKeeper = false;
+      p.role = 'unknown';
+      p.specialAction = '';
+    }
+    _log('--- НАЧАТА НОВАЯ ИГРА ---');
     notifyListeners();
   }
 
@@ -349,6 +363,7 @@ class GameState extends ChangeNotifier {
     'motherHydra': motherHydra,
     'availableMyths': availableMyths,
     'playedMyths': playedMyths,
+    'themeMode': themeMode.toString(), // <--- ТЕПЕРЬ ЗДЕСЬ
     'players': players.map((p) => p.toJson()).toList(),
     'log': log,
   };
@@ -360,8 +375,7 @@ class GameState extends ChangeNotifier {
     supplies = j['supplies'] as int? ?? 8;
     sanity = j['sanity'] as int? ?? 8;
     souls = j['souls'] as int? ?? 8;
-    damageSections =
-        (j['damageSections'] as List?)?.cast<bool>() ?? List.filled(6, false);
+    damageSections = (j['damageSections'] as List?)?.cast<bool>() ?? List.filled(6, false);
     travelPosition = j['travelPosition'] as int? ?? 0;
     gameStatus = j['gameStatus'] as String? ?? 'active';
     ritualProgress = j['ritualProgress'] as int? ?? 0;
@@ -371,10 +385,16 @@ class GameState extends ChangeNotifier {
     motherHydra = j['motherHydra'] as bool? ?? false;
     availableMyths = (j['availableMyths'] as List?)?.cast<String>() ?? availableMyths;
     playedMyths = (j['playedMyths'] as List?)?.cast<String>() ?? <String>[];
+
+    themeMode = ThemeMode.values.firstWhere(
+          (e) => e.toString() == j['themeMode'],
+      orElse: () => ThemeMode.system,
+    );
+
     players = (j['players'] as List?)
         ?.map((e) => Player.fromJson(e as Map<String, dynamic>))
-        .toList() ??
-        players;
+        .toList() ?? players;
+
     log = (j['log'] as List?)?.cast<String>() ?? <String>[];
     notifyListeners();
   }
@@ -383,23 +403,6 @@ class GameState extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('game_state', jsonEncode(toJson()));
     _log('Игра сохранена');
-    notifyListeners();
-  }
-
-  void addPlayer() {
-    if (players.length >= 6) return; // Максимум 6 игроков
-    _saveHistory();
-    players.add(Player(name: 'Игрок ${players.length + 1}'));
-    _log('Добавлен новый игрок');
-    notifyListeners();
-  }
-
-  void removePlayer(int index) {
-    if (players.length <= 1) return; // Нельзя удалить последнего игрока
-    _saveHistory();
-    final removedName = players[index].name;
-    players.removeAt(index);
-    _log('Удален игрок: $removedName');
     notifyListeners();
   }
 
