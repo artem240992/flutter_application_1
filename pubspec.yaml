@@ -1,7 +1,7 @@
 name: unfathomable_companion
 description: Companion for Unfathomable board game
 publish_to: 'none'
-version: 1.0.3
+version: 1.0.8+4
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -14,6 +14,7 @@ dependencies:
   image_picker: ^1.1.2
   google_mlkit_text_recognition: ^0.13.0
   package_info_plus: ^8.0.0
+  audioplayers: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -28,6 +29,8 @@ flutter:
   assets:
     - assets/myths.json
     - assets/icon/app_icon.png  # <-- ДОБАВИТЬ ВОТ ЭТУ СТРОКУ
+    - assets/sounds/ambient.mp3   # <-- Звук
+    - assets/icon/boston.png # <-- Картинка для пасхалки
 
 # Блок настройки иконки должен быть БЕЗ отступов слева, на одном уровне с flutter:
 flutter_launcher_icons:
