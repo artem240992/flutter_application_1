@@ -32,21 +32,24 @@ class MonstersScreen extends StatelessWidget {
               ),
             ]),
           ),
-          SectionCard(
-            title: 'Древние',
-            child: Column(children: [
-              SwitchListTile(
-                title: const Text('Отец Дагон'),
-                value: s.fatherDagon,
-                onChanged: (_) => s.toggleBoss('dagon'),
-              ),
-              SwitchListTile(
-                title: const Text('Мать Гидра'),
-                value: s.motherHydra,
-                onChanged: (_) => s.toggleBoss('hydra'),
-              ),
-            ]),
-          ),
+
+          // Скрываем блок с боссами, если настройка выключена
+          if (s.showBosses)
+            SectionCard(
+              title: 'Древние',
+              child: Column(children: [
+                SwitchListTile(
+                  title: const Text('Отец Дагон'),
+                  value: s.fatherDagon,
+                  onChanged: (_) => s.toggleBoss('dagon'),
+                ),
+                SwitchListTile(
+                  title: const Text('Мать Гидра'),
+                  value: s.motherHydra,
+                  onChanged: (_) => s.toggleBoss('hydra'),
+                ),
+              ]),
+            ),
         ],
       ),
     );

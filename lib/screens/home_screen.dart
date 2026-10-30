@@ -102,7 +102,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(
-                      // Используем прозрачность для поддержки темной темы
                       color: broken
                           ? Colors.red.withOpacity(0.2)
                           : Colors.green.withOpacity(0.2),
@@ -146,7 +145,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               ? Colors.amber
                               : reached
                               ? Colors.blue
-                          // Используем цвет из темы
                               : Theme.of(context).disabledColor.withOpacity(0.3),
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -172,23 +170,26 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          SectionCard(
-            title: 'Ритуал',
-            child: Row(
-              children: [
-                Text('Прогресс: ${s.ritualProgress}'),
-                const Spacer(),
-                IconButton(
-                  onPressed: () => s.adjustRitual(-1),
-                  icon: const Icon(Icons.remove),
-                ),
-                IconButton(
-                  onPressed: () => s.adjustRitual(1),
-                  icon: const Icon(Icons.add),
-                ),
-              ],
+
+          // Скрываем трек ритуала, если настройка выключена
+          if (s.showRitual)
+            SectionCard(
+              title: 'Ритуал',
+              child: Row(
+                children: [
+                  Text('Прогресс: ${s.ritualProgress}'),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => s.adjustRitual(-1),
+                    icon: const Icon(Icons.remove),
+                  ),
+                  IconButton(
+                    onPressed: () => s.adjustRitual(1),
+                    icon: const Icon(Icons.add),
+                  ),
+                ],
+              ),
             ),
-          ),
 
           const SizedBox(height: 24),
           FutureBuilder<PackageInfo>(
@@ -212,46 +213,64 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- НАСТРОЙКИ ТЕМЫ (ТЕПЕРЬ В ПРАВИЛЬНОМ МЕСТЕ) ---
+  // --- НАСТРОЙКИ ---
   void _showSettingsDialog(BuildContext context, GameState s) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Настройки'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Тема оформления:', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            RadioListTile<ThemeMode>(
-              title: const Text('Системная'),
-              value: ThemeMode.system,
-              groupValue: s.themeMode,
-              onChanged: (val) {
-                if (val != null) s.setThemeMode(val);
-                Navigator.pop(ctx);
-              },
-            ),
-            RadioListTile<ThemeMode>(
-              title: const Text('Светлая'),
-              value: ThemeMode.light,
-              groupValue: s.themeMode,
-              onChanged: (val) {
-                if (val != null) s.setThemeMode(val);
-                Navigator.pop(ctx);
-              },
-            ),
-            RadioListTile<ThemeMode>(
-              title: const Text('Темная'),
-              value: ThemeMode.dark,
-              groupValue: s.themeMode,
-              onChanged: (val) {
-                if (val != null) s.setThemeMode(val);
-                Navigator.pop(ctx);
-              },
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Тема оформления:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              RadioListTile<ThemeMode>(
+                title: const Text('Системная'),
+                value: ThemeMode.system,
+                groupValue: s.themeMode,
+                onChanged: (val) {
+                  if (val != null) s.setThemeMode(val);
+                  Navigator.pop(ctx);
+                },
+              ),
+              RadioListTile<ThemeMode>(
+                title: const Text('Светлая'),
+                value: ThemeMode.light,
+                groupValue: s.themeMode,
+                onChanged: (val) {
+                  if (val != null) s.setThemeMode(val);
+                  Navigator.pop(ctx);
+                },
+              ),
+              RadioListTile<ThemeMode>(
+                title: const Text('Темная'),
+                value: ThemeMode.dark,
+                groupValue: s.themeMode,
+                onChanged: (val) {
+                  if (val != null) s.setThemeMode(val);
+                  Navigator.pop(ctx);
+                },
+              ),
+              const Divider(),
+              SwitchListTile(
+                title: const Text('Показывать трек Ритуала'),
+                value: s.showRitual,
+                onChanged: (_) => s.toggleRitualVisibility(),
+              ),
+              SwitchListTile(
+                title: const Text('Показывать Боссов'),
+                value: s.showBosses,
+                onChanged: (_) => s.toggleBossesVisibility(),
+              ),
+              SwitchListTile(
+                title: const Text('Фоновые звуки'),
+                value: s.isSoundEnabled,
+                onChanged: (_) => s.toggleSound(),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -288,6 +307,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // --- ОКНО ОКОНЧАНИЯ ИГРЫ (С ПАСХАЛКОЙ) ---
   void _showGameOverDialog(BuildContext context, GameState s) {
     bool isHumanWin = s.gameStatus == 'human_win';
 
@@ -302,10 +322,25 @@ class _HomeScreenState extends State<HomeScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        content: Text(
-          isHumanWin
-              ? 'Корабль успешно добрался до Бостона, сохранив экипаж и ресурсы. Люди выиграли! Раскройте свои тайные роли, чтобы узнать, кто победил лично.'
-              : 'Корабль потерпел крушение или ресурсы иссякли. Гибриды и культисты одержали верх! Раскройте свои тайные роли.',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isHumanWin) ...[
+              // Картинка Бостона (добавьте errorBuilder, чтобы не падало, если картинки нет)
+              Image.asset(
+                'assets/icon/boston.png',
+                height: 120,
+                errorBuilder: (context, error, stackTrace) => const Icon(Icons.location_city, size: 80, color: Colors.blue),
+              ),
+              const SizedBox(height: 16),
+            ],
+            Text(
+              isHumanWin
+                  ? 'Корабль успешно добрался до Бостона, сохранив экипаж и ресурсы. Люди выиграли! Раскройте свои тайные роли, чтобы узнать, кто победил лично.'
+                  : 'Корабль потерпел крушение или ресурсы иссякли. Гибриды и культисты одержали верх! Раскройте свои тайные роли.',
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
         actions: [
           TextButton(

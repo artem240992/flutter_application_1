@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Для вибрации
+import 'package:audioplayers/audioplayers.dart'; // Для звука
 
 class Player {
   final String name;
@@ -84,6 +86,12 @@ class GameState extends ChangeNotifier {
   // ТЕМА ОФОРМЛЕНИЯ
   ThemeMode themeMode = ThemeMode.system;
 
+  bool showRitual = true;
+  bool showBosses = true;
+  bool isSoundEnabled = false;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
   List<Player> players = [
     Player(name: 'Игрок 1'),
     Player(name: 'Игрок 2'),
@@ -105,20 +113,24 @@ class GameState extends ChangeNotifier {
 
   void _checkGameStatus() {
     if (gameStatus != 'active') return;
+      HapticFeedback.heavyImpact(); // Вибрация при проигрыше/победе
 
     if (fuel <= 0 || supplies <= 0 || sanity <= 0 || souls <= 0 || damageSections.every((d) => d)) {
       gameStatus = 'traitor_win';
       _log('ИГРА ОКОНЧЕНА: Ресурсы на нуле или корабль уничтожен. Победа Предателей!');
+      HapticFeedback.heavyImpact(); // Вибрация при проигрыше/победе
       return;
     }
 
     if (travelPosition >= maxTravel) {
       if (fuel > 0 && supplies > 0 && sanity > 0 && souls > 0) {
         gameStatus = 'human_win';
+        HapticFeedback.heavyImpact(); // Вибрация при проигрыше/победе
         _log('ИГРА ОКОНЧЕНА: Корабль добрался до Бостона! Победа Людей!');
       } else {
         gameStatus = 'traitor_win';
         _log('ИГРА ОКОНЧЕНА: Прибыли в Бостон, но ресурсы на нуле. Победа Предателей!');
+        HapticFeedback.heavyImpact(); // Вибрация при проигрыше/победе
       }
     }
   }
@@ -351,6 +363,9 @@ class GameState extends ChangeNotifier {
   Map<String, dynamic> toJson() => {
     'fuel': fuel,
     'supplies': supplies,
+    'showRitual': showRitual,
+    'showBosses': showBosses,
+    'isSoundEnabled': isSoundEnabled,
     'sanity': sanity,
     'souls': souls,
     'damageSections': damageSections,
@@ -385,6 +400,13 @@ class GameState extends ChangeNotifier {
     motherHydra = j['motherHydra'] as bool? ?? false;
     availableMyths = (j['availableMyths'] as List?)?.cast<String>() ?? availableMyths;
     playedMyths = (j['playedMyths'] as List?)?.cast<String>() ?? <String>[];
+    showRitual = j['showRitual'] as bool? ?? true;
+    showBosses = j['showBosses'] as bool? ?? true;
+    isSoundEnabled = j['isSoundEnabled'] as bool? ?? false;
+    if (isSoundEnabled) {
+      _audioPlayer.setReleaseMode(ReleaseMode.loop);
+      _audioPlayer.play(AssetSource('sounds/ambient.mp3'), volume: 0.4);
+    }
 
     themeMode = ThemeMode.values.firstWhere(
           (e) => e.toString() == j['themeMode'],
@@ -413,5 +435,33 @@ class GameState extends ChangeNotifier {
     final state = GameState();
     state.restore(jsonDecode(raw) as Map<String, dynamic>, recordHistory: false);
     return state;
+  }
+
+  void toggleRitualVisibility() {
+    showRitual = !showRitual;
+    save();
+    notifyListeners();
+  }
+
+  void toggleBossesVisibility() {
+    showBosses = !showBosses;
+    save();
+    notifyListeners();
+  }
+
+  Future<void> toggleSound() async {
+    isSoundEnabled = !isSoundEnabled;
+    if (isSoundEnabled) {
+      try {
+        await _audioPlayer.setReleaseMode(ReleaseMode.loop);
+        await _audioPlayer.play(AssetSource('sounds/ambient.mp3'), volume: 0.4);
+      } catch (e) {
+        _log('Ошибка звука: $e');
+      }
+    } else {
+      await _audioPlayer.stop();
+    }
+    save();
+    notifyListeners();
   }
 }
