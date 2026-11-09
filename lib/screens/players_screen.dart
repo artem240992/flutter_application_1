@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/game_state.dart';
+import 'lan_role_screen.dart';
 
 class PlayersScreen extends StatelessWidget {
   const PlayersScreen({super.key});
@@ -28,7 +29,22 @@ class PlayersScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.watch<GameState>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Игроки и персонажи')),
+      appBar: AppBar(
+        title: const Text('Игроки и персонажи'),
+        actions: [
+          // Кнопка LAN-раздачи ролей
+          IconButton(
+            tooltip: 'Раздать роли по Wi-Fi',
+            icon: const Icon(Icons.wifi),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LanRoleScreen()),
+              );
+            },
+          ),
+        ],
+      ),
       body: ListView.builder(
         padding: const EdgeInsets.all(12),
         itemCount: s.players.length,
@@ -94,11 +110,11 @@ class PlayersScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildStat('Сила', p.strength),
-                        _buildStat('Воля', p.will),
-                        _buildStat('Знание', p.lore),
-                        _buildStat('Влияние', p.influence),
-                        _buildStat('Наблюд.', p.observation),
+                        _buildStat(context, 'Сила', p.strength),
+                        _buildStat(context, 'Воля', p.will),
+                        _buildStat(context, 'Знание', p.lore),
+                        _buildStat(context, 'Влияние', p.influence),
+                        _buildStat(context, 'Наблюд.', p.observation),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -151,7 +167,8 @@ class PlayersScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStat(String label, int value) {
+  // Обновленный метод для поддержки темной темы
+  Widget _buildStat(BuildContext context, String label, int value) {
     return Column(
       children: [
         Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
@@ -159,14 +176,17 @@ class PlayersScreen extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.blue.shade100,
+            color: Theme.of(context).colorScheme.primaryContainer,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.blue),
+            border: Border.all(color: Theme.of(context).colorScheme.primary),
           ),
           child: Text(
             '$value',
-            style: const TextStyle(
-                fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+            ),
           ),
         ),
       ],

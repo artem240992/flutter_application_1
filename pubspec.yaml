@@ -1,7 +1,7 @@
 name: unfathomable_companion
 description: Companion for Unfathomable board game
 publish_to: 'none'
-version: 1.0.8+4
+version: 1.0.15+4
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -15,6 +15,10 @@ dependencies:
   google_mlkit_text_recognition: ^0.13.0
   package_info_plus: ^8.0.0
   audioplayers: ^6.0.0
+  web_socket_channel: ^3.0.1
+  network_info_plus: ^6.0.1
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^5.2.3
 
 dev_dependencies:
   flutter_test:

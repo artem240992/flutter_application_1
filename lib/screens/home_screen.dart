@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../models/game_state.dart';
 import '../widgets/common.dart';
+import 'skill_check_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -57,6 +58,40 @@ class _HomeScreenState extends State<HomeScreen> {
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
+          // --- ТРЕКЕР ХОДОВ (Перемещен в начало списка) ---
+          if (s.players.isNotEmpty)
+            SectionCard(
+              title: 'Текущий ход',
+              child: Row(
+                children: [
+                  const Icon(Icons.play_circle_fill, color: Colors.green, size: 32),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          s.players[s.activePlayerIndex].name,
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        if (s.players[s.activePlayerIndex].characterName != 'Не выбран')
+                          Text(
+                            s.players[s.activePlayerIndex].characterName,
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                      ],
+                    ),
+                  ),
+                  FilledButton.tonalIcon(
+                    onPressed: s.nextTurn,
+                    icon: const Icon(Icons.skip_next),
+                    label: const Text('Далее'),
+                  ),
+                ],
+              ),
+            ),
+          // -----------------------------------------------
+
           SectionCard(
             title: 'Ресурсы',
             child: Column(
@@ -207,8 +242,19 @@ class _HomeScreenState extends State<HomeScreen> {
               return const SizedBox.shrink();
             },
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 80), // Отступ, чтобы FAB не перекрывал текст
         ],
+      ),
+      // Кнопка проверки
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SkillCheckScreen()),
+          );
+        },
+        icon: const Icon(Icons.casino),
+        label: const Text('Проверка'),
       ),
     );
   }
@@ -326,7 +372,6 @@ class _HomeScreenState extends State<HomeScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (isHumanWin) ...[
-              // Картинка Бостона (добавьте errorBuilder, чтобы не падало, если картинки нет)
               Image.asset(
                 'assets/icon/boston.png',
                 height: 120,

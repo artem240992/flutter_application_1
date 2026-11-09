@@ -1,19 +1,19 @@
 import 'dart:convert';
+import 'dart:math'; // Добавлено для рандома
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Для вибрации
-import 'package:audioplayers/audioplayers.dart'; // Для звука
+import 'package:flutter/services.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class Player {
   final String name;
   bool isCaptain;
   bool isKeeper;
-  String role; // unknown | human | hybrid | cultist
+  String role;
   String characterName;
   String specialAction;
 
-  // Характеристики
   int strength;
   int will;
   int lore;
@@ -68,7 +68,7 @@ class GameState extends ChangeNotifier {
   int supplies = 8;
   int sanity = 8;
   int souls = 8;
-  String gameStatus = 'active'; // 'active', 'human_win', 'traitor_win'
+  String gameStatus = 'active';
 
   List<bool> damageSections = List.filled(6, false);
   int travelPosition = 0;
@@ -83,7 +83,6 @@ class GameState extends ChangeNotifier {
   List<String> availableMyths = [];
   List<String> playedMyths = <String>[];
 
-  // ТЕМА ОФОРМЛЕНИЯ
   ThemeMode themeMode = ThemeMode.system;
 
   bool showRitual = true;
@@ -92,12 +91,12 @@ class GameState extends ChangeNotifier {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
 
+  // ТЕПЕРЬ ПО УМОЛЧАНИЮ ТОЛЬКО 1 ИГРОК
   List<Player> players = [
     Player(name: 'Игрок 1'),
-    Player(name: 'Игрок 2'),
-    Player(name: 'Игрок 3'),
-    Player(name: 'Игрок 4'),
   ];
+
+  int activePlayerIndex = 0; // Индекс текущего игрока
 
   List<String> log = <String>[];
 
@@ -111,26 +110,39 @@ class GameState extends ChangeNotifier {
     }
   }
 
+  void nextTurn() {
+    if (players.isEmpty) return;
+    activePlayerIndex = (activePlayerIndex + 1) % players.length;
+    _log('Ход перешел к: ${players[activePlayerIndex].name}');
+    notifyListeners();
+  }
+
+  void drawRandomMyth() {
+    if (availableMyths.isEmpty) return;
+    final random = Random();
+    final myth = availableMyths[random.nextInt(availableMyths.length)];
+    addMyth(myth);
+  }
+
   void _checkGameStatus() {
     if (gameStatus != 'active') return;
-      HapticFeedback.heavyImpact(); // Вибрация при проигрыше/победе
 
     if (fuel <= 0 || supplies <= 0 || sanity <= 0 || souls <= 0 || damageSections.every((d) => d)) {
       gameStatus = 'traitor_win';
       _log('ИГРА ОКОНЧЕНА: Ресурсы на нуле или корабль уничтожен. Победа Предателей!');
-      HapticFeedback.heavyImpact(); // Вибрация при проигрыше/победе
+      HapticFeedback.heavyImpact();
       return;
     }
 
     if (travelPosition >= maxTravel) {
       if (fuel > 0 && supplies > 0 && sanity > 0 && souls > 0) {
         gameStatus = 'human_win';
-        HapticFeedback.heavyImpact(); // Вибрация при проигрыше/победе
+        HapticFeedback.heavyImpact();
         _log('ИГРА ОКОНЧЕНА: Корабль добрался до Бостона! Победа Людей!');
       } else {
         gameStatus = 'traitor_win';
         _log('ИГРА ОКОНЧЕНА: Прибыли в Бостон, но ресурсы на нуле. Победа Предателей!');
-        HapticFeedback.heavyImpact(); // Вибрация при проигрыше/победе
+        HapticFeedback.heavyImpact();
       }
     }
   }
@@ -145,32 +157,23 @@ class GameState extends ChangeNotifier {
 
   void setThemeMode(ThemeMode mode) {
     themeMode = mode;
-    save(); // Автоматически сохраняем настройку
+    save();
     notifyListeners();
   }
 
   void _log(String m) {
     final now = DateTime.now();
-    final t =
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final t = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
     log.insert(0, '[$t] $m');
   }
 
   void adjustResource(String key, int delta) {
     _saveHistory();
     switch (key) {
-      case 'fuel':
-        fuel = (fuel + delta).clamp(0, 99);
-        break;
-      case 'supplies':
-        supplies = (supplies + delta).clamp(0, 99);
-        break;
-      case 'sanity':
-        sanity = (sanity + delta).clamp(0, 99);
-        break;
-      case 'souls':
-        souls = (souls + delta).clamp(0, 99);
-        break;
+      case 'fuel': fuel = (fuel + delta).clamp(0, 99); break;
+      case 'supplies': supplies = (supplies + delta).clamp(0, 99); break;
+      case 'sanity': sanity = (sanity + delta).clamp(0, 99); break;
+      case 'souls': souls = (souls + delta).clamp(0, 99); break;
     }
     _log('$key: ${delta > 0 ? '+' : ''}$delta');
     notifyListeners();
@@ -256,11 +259,7 @@ class GameState extends ChangeNotifier {
     for (var i = 0; i < players.length; i++) {
       players[i].isCaptain = isCurrentlyCaptain ? false : (i == index);
     }
-    if (isCurrentlyCaptain) {
-      _log('Капитан снят');
-    } else {
-      _log('Капитан: ${players[index].name}');
-    }
+    _log(isCurrentlyCaptain ? 'Капитан снят' : 'Капитан: ${players[index].name}');
     notifyListeners();
   }
 
@@ -270,11 +269,7 @@ class GameState extends ChangeNotifier {
     for (var i = 0; i < players.length; i++) {
       players[i].isKeeper = isCurrentlyKeeper ? false : (i == index);
     }
-    if (isCurrentlyKeeper) {
-      _log('Хранитель снят');
-    } else {
-      _log('Хранитель фолианта: ${players[index].name}');
-    }
+    _log(isCurrentlyKeeper ? 'Хранитель снят' : 'Хранитель фолианта: ${players[index].name}');
     notifyListeners();
   }
 
@@ -283,23 +278,11 @@ class GameState extends ChangeNotifier {
     players[index].characterName = charName;
 
     if (charName == 'Агата Крейн') {
-      players[index].strength = 2;
-      players[index].will = 4;
-      players[index].lore = 5;
-      players[index].influence = 2;
-      players[index].observation = 3;
+      players[index].strength = 2; players[index].will = 4; players[index].lore = 5; players[index].influence = 2; players[index].observation = 3;
     } else if (charName == 'Отец Матео') {
-      players[index].strength = 3;
-      players[index].will = 5;
-      players[index].lore = 3;
-      players[index].influence = 4;
-      players[index].observation = 2;
+      players[index].strength = 3; players[index].will = 5; players[index].lore = 3; players[index].influence = 4; players[index].observation = 2;
     } else if (charName == 'Дэвид Марш') {
-      players[index].strength = 2;
-      players[index].will = 3;
-      players[index].lore = 4;
-      players[index].influence = 1;
-      players[index].observation = 4;
+      players[index].strength = 2; players[index].will = 3; players[index].lore = 4; players[index].influence = 1; players[index].observation = 4;
     }
 
     _log('${players[index].name} выбрал персонажа: $charName');
@@ -331,6 +314,7 @@ class GameState extends ChangeNotifier {
     _saveHistory();
     final removedName = players[index].name;
     players.removeAt(index);
+    if (activePlayerIndex >= players.length) activePlayerIndex = 0;
     _log('Удален игрок: $removedName');
     notifyListeners();
   }
@@ -338,49 +322,33 @@ class GameState extends ChangeNotifier {
   void resetGame() {
     _saveHistory();
     gameStatus = 'active';
-    fuel = 8;
-    supplies = 8;
-    sanity = 8;
-    souls = 8;
+    fuel = 8; supplies = 8; sanity = 8; souls = 8;
     damageSections = List.filled(6, false);
-    travelPosition = 0;
-    ritualProgress = 0;
-    deepOnDeck = 0;
-    deepInOcean = 0;
-    fatherDagon = false;
-    motherHydra = false;
+    travelPosition = 0; ritualProgress = 0; deepOnDeck = 0; deepInOcean = 0;
+    fatherDagon = false; motherHydra = false;
     playedMyths.clear();
-    for (var p in players) {
-      p.isCaptain = false;
-      p.isKeeper = false;
-      p.role = 'unknown';
-      p.specialAction = '';
-    }
+    activePlayerIndex = 0;
+
+    // ПРИ НОВОЙ ИГРЕ ОСТАВЛЯЕМ ТОЛЬКО 1 ИГРОКА
+    players = [
+      Player(name: 'Игрок 1'),
+    ];
+
     _log('--- НАЧАТА НОВАЯ ИГРА ---');
     notifyListeners();
   }
 
   Map<String, dynamic> toJson() => {
-    'fuel': fuel,
-    'supplies': supplies,
-    'showRitual': showRitual,
-    'showBosses': showBosses,
-    'isSoundEnabled': isSoundEnabled,
-    'sanity': sanity,
-    'souls': souls,
-    'damageSections': damageSections,
-    'travelPosition': travelPosition,
-    'ritualProgress': ritualProgress,
-    'gameStatus': gameStatus,
-    'deepOnDeck': deepOnDeck,
-    'deepInOcean': deepInOcean,
-    'fatherDagon': fatherDagon,
-    'motherHydra': motherHydra,
-    'availableMyths': availableMyths,
-    'playedMyths': playedMyths,
-    'themeMode': themeMode.toString(), // <--- ТЕПЕРЬ ЗДЕСЬ
-    'players': players.map((p) => p.toJson()).toList(),
-    'log': log,
+    'fuel': fuel, 'supplies': supplies, 'sanity': sanity, 'souls': souls,
+    'damageSections': damageSections, 'travelPosition': travelPosition,
+    'ritualProgress': ritualProgress, 'gameStatus': gameStatus,
+    'deepOnDeck': deepOnDeck, 'deepInOcean': deepInOcean,
+    'fatherDagon': fatherDagon, 'motherHydra': motherHydra,
+    'availableMyths': availableMyths, 'playedMyths': playedMyths,
+    'themeMode': themeMode.toString(),
+    'showRitual': showRitual, 'showBosses': showBosses, 'isSoundEnabled': isSoundEnabled,
+    'activePlayerIndex': activePlayerIndex,
+    'players': players.map((p) => p.toJson()).toList(), 'log': log,
   };
 
   void restore(Map<String, dynamic> j, {bool recordHistory = false}) {
@@ -403,20 +371,16 @@ class GameState extends ChangeNotifier {
     showRitual = j['showRitual'] as bool? ?? true;
     showBosses = j['showBosses'] as bool? ?? true;
     isSoundEnabled = j['isSoundEnabled'] as bool? ?? false;
+    activePlayerIndex = j['activePlayerIndex'] as int? ?? 0;
+
     if (isSoundEnabled) {
       _audioPlayer.setReleaseMode(ReleaseMode.loop);
       _audioPlayer.play(AssetSource('sounds/ambient.mp3'), volume: 0.4);
     }
 
-    themeMode = ThemeMode.values.firstWhere(
-          (e) => e.toString() == j['themeMode'],
-      orElse: () => ThemeMode.system,
-    );
-
-    players = (j['players'] as List?)
-        ?.map((e) => Player.fromJson(e as Map<String, dynamic>))
-        .toList() ?? players;
-
+    themeMode = ThemeMode.values.firstWhere((e) => e.toString() == j['themeMode'], orElse: () => ThemeMode.system);
+    players = (j['players'] as List?)?.map((e) => Player.fromJson(e as Map<String, dynamic>)).toList() ?? players;
+    if (activePlayerIndex >= players.length) activePlayerIndex = 0;
     log = (j['log'] as List?)?.cast<String>() ?? <String>[];
     notifyListeners();
   }
